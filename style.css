@@ -55,6 +55,11 @@ button { font-family: inherit; cursor: pointer; }
 .btn.ghost { background: transparent; }
 .btn.block { width: 100%; }
 .btn.disabled, .btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary.disabled, .btn.primary:disabled,
+.btn.primary.disabled:hover, .btn.primary:disabled:hover {
+  background: var(--panel2); border-color: var(--line); color: var(--muted);
+  opacity: 1; cursor: not-allowed; box-shadow: none;
+}
 .linklike { background: none; border: none; color: #7dd3fc; padding: 0; font-size: inherit; text-decoration: underline; }
 
 /* ---------- layout ---------- */
@@ -70,7 +75,7 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 40px; }
 .tower-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
 .scene-wrap { min-width: 0; }
 .scene {
-  position: relative; height: 720px; border-radius: 18px; overflow: hidden;
+  position: relative; height: 760px; border-radius: 18px; overflow: hidden;
   background: linear-gradient(180deg, #070d24 0%, #101a3f 52%, #1b2a57 78%, #0d1330 100%);
   border: 1px solid var(--line);
   perspective: 1500px;
@@ -89,14 +94,15 @@ main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 40px; }
     radial-gradient(1.5px 1.5px at 93% 44%, #fff 50%, transparent 51%);
 }
 .building-pos {
-  position: absolute; left: 50%; bottom: 84px; width: 0; height: 0;
+  position: absolute; left: 50%; bottom: 70px; width: 0; height: 0;
   transform: translate(-50%, 0);
   transition: transform .8s cubic-bezier(.3, .8, .3, 1);
   transform-style: preserve-3d;
 }
 .building {
-  position: absolute; left: 0; bottom: 0; width: 0; height: 640px;
+  position: absolute; left: 0; bottom: 0; width: 0; height: 660px;
   transform-style: preserve-3d;
+  transform-origin: 50% 100%;
   transform: rotateX(5deg) rotateY(var(--ry, -16deg));
 }
 .floor3d { position: absolute; left: 0; width: 0; height: 0; transform-style: preserve-3d; }
