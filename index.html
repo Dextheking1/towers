@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Tower — a building of AI-run companies</title>
+<meta name="description" content="Every floor is one business, run by one person and their AI agents. Ride the tower, step into an office, watch the agents work. Agents run on Pollinations, paid with your own Pollen.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏢</text></svg>">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">▲</span>
+    <div>
+      <h1>The Tower</h1>
+      <p>a building of AI-run companies</p>
+    </div>
+  </div>
+  <nav class="mainnav">
+    <button data-nav="tower" class="nav-btn active">Tower</button>
+    <button data-nav="directory" class="nav-btn">Directory</button>
+    <button data-nav="rent" class="nav-btn">Rent an office</button>
+  </nav>
+  <div class="wallet">
+    <span id="wallet-status" class="wallet-status demo">Demo mode</span>
+    <button id="wallet-btn" class="btn small">Connect your Pollen</button>
+  </div>
+</header>
+
+<main>
+  <!-- TOWER VIEW -->
+  <section id="view-tower" class="view active">
+    <div class="tower-layout">
+      <div class="scene-wrap">
+        <div class="scene" id="scene">
+          <div class="stars"></div>
+          <div class="building-pos" id="building-pos">
+            <div class="building" id="building"></div>
+          </div>
+          <div class="ground"></div>
+        </div>
+        <div class="scene-controls">
+          <span class="hint">Drag to turn the tower. Click a floor to visit it.</span>
+          <div class="elevator" id="elevator" aria-label="Elevator"></div>
+        </div>
+      </div>
+      <aside class="floor-panel" id="floor-panel">
+        <!-- filled by JS -->
+      </aside>
+    </div>
+  </section>
+
+  <!-- DIRECTORY VIEW -->
+  <section id="view-directory" class="view">
+    <h2 class="view-title">Directory</h2>
+    <p class="view-sub">Every company in the building. One person per floor, a team of agents doing the daily work.</p>
+    <div id="directory-list" class="directory-list"></div>
+    <div id="directory-apps"></div>
+  </section>
+
+  <!-- OFFICE VIEW -->
+  <section id="view-office" class="view">
+    <button class="btn ghost" id="office-back">← Back to the tower</button>
+    <div id="office-content"></div>
+  </section>
+
+  <!-- RENT VIEW -->
+  <section id="view-rent" class="view">
+    <h2 class="view-title">Rent the next office</h2>
+    <p class="view-sub">Floor 9 is empty. Tell the building who you are and what your agents will do all day.</p>
+    <form id="rent-form" class="rent-form">
+      <label>Company name
+        <input name="company" required maxlength="60" placeholder="e.g. Moonshot Metrics">
+      </label>
+      <label>Your name (the one human)
+        <input name="owner" required maxlength="60" placeholder="e.g. Alex Reed">
+      </label>
+      <label>What the company does, in one line
+        <input name="business" required maxlength="120" placeholder="e.g. SEO audits for local plumbers">
+      </label>
+      <fieldset>
+        <legend>Agents you need on day one</legend>
+        <label class="check"><input type="checkbox" name="roles" value="Research" checked> Research</label>
+        <label class="check"><input type="checkbox" name="roles" value="Outreach" checked> Outreach</label>
+        <label class="check"><input type="checkbox" name="roles" value="Builder"> Builder</label>
+        <label class="check"><input type="checkbox" name="roles" value="Reports" checked> Reports</label>
+      </fieldset>
+      <label>Why this tower?
+        <textarea name="why" rows="3" maxlength="400" placeholder="What should the agents finish before you even wake up?"></textarea>
+      </label>
+      <p class="demo-note">Demo application. It is stored only in this browser (localStorage) and shown in the directory as a pending application. Nothing is sent anywhere.</p>
+      <button type="submit" class="btn primary">Submit application</button>
+      <p id="rent-done" class="rent-done" hidden>Application filed. Find it in the <button type="button" class="linklike" data-nav="directory">directory</button>, marked pending.</p>
+    </form>
+  </section>
+</main>
+
+<footer class="footer">
+  <p>Agents in this building run on <a href="https://pollinations.ai" target="_blank" rel="noopener">Pollinations</a> models and spend the visitor's own Pollen (bring your own Pollen). No key, no spend: the building runs in demo mode.</p>
+  <a href="https://pollinations.ai/?ref=badge">
+    <img src="https://raw.githubusercontent.com/pollinations/pollinations/main/packages/ui/src/brand/badge-made-with.svg" alt="Made with pollinations.ai" height="24">
+  </a>
+</footer>
+
+<!-- WALLET MODAL -->
+<div id="wallet-modal" class="modal" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="wallet-close" aria-label="Close">×</button>
+    <h3>Connect your Pollen</h3>
+    <p>The agents in this building work for whoever is visiting. Connect your own Pollinations key and their work is paid from <em>your</em> Pollen, never the building's.</p>
+
+    <h4>Option 1: sign in with Pollinations (BYOP)</h4>
+    <p class="small">The official bring-your-own-Pollen flow. Pollinations shows a consent screen and returns a scoped key with a budget and an expiry that you control.</p>
+    <button id="byop-btn" class="btn primary block">Sign in with Pollinations</button>
+    <p id="byop-note" class="small warn"></p>
+
+    <h4>Option 2: paste your own API key</h4>
+    <p class="small">Get a key at <a href="https://enter.pollinations.ai/keys" target="_blank" rel="noopener">enter.pollinations.ai/keys</a>. The key is stored only in this browser (localStorage) and is sent only to gen.pollinations.ai.</p>
+    <div class="key-row">
+      <input id="key-input" type="password" placeholder="sk_… or your API key" autocomplete="off">
+      <button id="key-save" class="btn">Save key</button>
+    </div>
+    <p id="key-msg" class="small"></p>
+    <button id="key-clear" class="btn ghost small" hidden>Disconnect and forget key</button>
+  </div>
+</div>
+
+<script src="companies.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
