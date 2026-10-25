@@ -95,11 +95,27 @@ async function validateKey(key) {
 function demoDailyLog(company) {
   const seed = hashStr(company.id + todayStr());
   const pool = company.logPool;
-  const lines = [];
-  const n = 4;
-  for (let i = 0; i < n; i++) lines.push(pool[(seed + i * 3) % pool.length]);
+  // Seeded shuffle, then take 4: the picked lines are always distinct.
+  // The old stride pick, (seed + i * 3) % pool.length, repeats whenever the
+  // stride and the pool length share a factor (length 6, stride 3 gave
+  // a, b, a, b, so two entries showed twice).
+  const order = pool.map((_, i) => i);
+  let s = seed || 1;
+  const rand = () => {
+    s = (Math.imul(s, 1103515245) + 12345) & 0x7fffffff;
+    return s / 0x80000000;
+  };
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    const t = order[i]; order[i] = order[j]; order[j] = t;
+  }
+  const lines = order.slice(0, 4).map(i => pool[i]);
   const decision = company.decisionPool[seed % company.decisionPool.length];
   return { lines, decision };
+}
+
+function dedupeLines(lines) {
+  return [...new Set(lines || [])];
 }
 
 function demoJobReply(company, job) {
@@ -125,7 +141,11 @@ async function getDailyLog(company, force) {
   if (!force) {
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
-      try { return JSON.parse(cached); } catch {}
+      try {
+        const parsed = JSON.parse(cached);
+        parsed.lines = dedupeLines(parsed.lines);
+        return parsed;
+      } catch {}
     }
   }
   let result;
@@ -142,7 +162,7 @@ async function getDailyLog(company, force) {
       ]);
       const rawLines = text.split("\n").map(s => s.trim()).filter(Boolean);
       const decisionLine = rawLines.find(l => /^decision needed:/i.test(l));
-      const lines = rawLines.filter(l => l !== decisionLine).slice(0, 5);
+      const lines = dedupeLines(rawLines.filter(l => l !== decisionLine)).slice(0, 5);
       result = {
         lines,
         decision: decisionLine ? decisionLine.replace(/^decision needed:\s*/i, "Decision needed: ") : "",
@@ -230,7 +250,10 @@ function buildTower() {
         '<span class="windows dark">' + '<span class="win"></span>'.repeat(14) + "</span>";
       side.innerHTML = '<span class="side-name">···</span>';
     }
-    front.addEventListener("click", () => selectFloor(row.floor, true));
+    const tapFloor = () => selectFloor(row.floor, true);
+    front.addEventListener("click", tapFloor);
+    side.addEventListener("click", tapFloor);
+    side.style.cursor = "pointer";
     wrap.appendChild(front);
     wrap.appendChild(side);
     b.appendChild(wrap);
@@ -264,9 +287,11 @@ function markSelected() {
   $$(".lift-btn").forEach(el => {
     el.classList.toggle("active", Number(el.dataset.floor) === state.selectedFloor);
   });
-  // gentle lift: shift the building so the selected floor sits mid-scene
+  // gentle lift: shift the building so the selected floor sits mid-scene.
+  // Clamped: the full building plus its roof sign is about 720px tall from
+  // its base, so a bigger upward shift would push the sign out of the scene.
   const idx = state.selectedFloor - 1; // 0 bottom
-  const shift = (idx - 4) * -14;
+  const shift = Math.max(-26, Math.min(26, (idx - 4) * -9));
   $("#building-pos").style.transform = "translate(-50%, " + shift + "px)";
 }
 
@@ -312,22 +337,38 @@ function renderFloorPanel() {
   if (en) en.addEventListener("click", () => openOffice(en.dataset.enter));
 }
 
-// drag to rotate
+// drag to rotate, tap a floor to visit it.
+// Pointer capture is taken only once a real drag is underway: capturing on
+// pointerdown retargets the following click to the scene, which is why
+// floor clicks used to do nothing. A press that never moves is a tap, and
+// the floor it started on gets selected here as well as by the face's own
+// click handler, so the tap lands either way.
 (function initDrag() {
   const scene = $("#scene");
-  let dragging = false, startX = 0, startRy = 0;
+  let dragging = false, moved = false, startX = 0, startRy = 0, downFloor = null;
   scene.addEventListener("pointerdown", e => {
     if (e.target.closest("button")) return;
-    dragging = true; startX = e.clientX; startRy = state.ry;
-    scene.setPointerCapture(e.pointerId);
+    dragging = true; moved = false; startX = e.clientX; startRy = state.ry;
+    const wrap = e.target.closest(".floor3d");
+    downFloor = wrap ? Number(wrap.dataset.floor) : null;
   });
   scene.addEventListener("pointermove", e => {
     if (!dragging) return;
     const dx = e.clientX - startX;
+    if (!moved) {
+      if (Math.abs(dx) <= 6) return;
+      moved = true;
+      try { scene.setPointerCapture(e.pointerId); } catch {}
+    }
     state.ry = Math.max(-38, Math.min(38, startRy + dx * 0.25));
     $("#building").style.setProperty("--ry", state.ry + "deg");
   });
-  ["pointerup", "pointercancel"].forEach(ev => scene.addEventListener(ev, () => { dragging = false; }));
+  ["pointerup", "pointercancel"].forEach(ev => scene.addEventListener(ev, e => {
+    if (ev === "pointerup" && dragging && !moved && downFloor !== null) {
+      selectFloor(downFloor, true);
+    }
+    dragging = false; moved = false; downFloor = null;
+  }));
 })();
 
 // ---------- directory ----------
@@ -503,10 +544,14 @@ function renderWalletModal() {
     note.textContent = "One-click sign-in needs an App Key registered for this page (enter.pollinations.ai/keys). The building ships without one, so use paste-a-key below, or register a key and set POLLINATIONS_APP_KEY in app.js.";
     btn.disabled = true;
     btn.classList.add("disabled");
+    btn.setAttribute("aria-disabled", "true");
+    btn.title = "Unavailable: no App Key is registered for this page yet";
   } else {
     note.textContent = "";
     btn.disabled = false;
     btn.classList.remove("disabled");
+    btn.removeAttribute("aria-disabled");
+    btn.removeAttribute("title");
   }
   $("#key-clear").hidden = !state.apiKey;
   $("#key-msg").textContent = state.apiKey ? "A key is connected on this device." : "";
